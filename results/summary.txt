@@ -1,16 +1,30 @@
-Submission-hardening experiment for paper 65 humanoid_whole_body_affordance_debt
-Seven seeds, 600 episodes per seed, strong baselines, ablations, stress sweep, and negative cases.
-observed_only_behavior_clone hidden_mode_shift mean_success=0.4086 ci95=0.0134 tail=0.5914
-observed_only_behavior_clone combined_stress mean_success=0.3293 ci95=0.0135 tail=0.6707
-data_augmentation_wam hidden_mode_shift mean_success=0.4852 ci95=0.0172 tail=0.5148
-data_augmentation_wam combined_stress mean_success=0.4312 ci95=0.0091 tail=0.5688
-scalar_uncertainty_planner hidden_mode_shift mean_success=0.5555 ci95=0.0099 tail=0.4445
-scalar_uncertainty_planner combined_stress mean_success=0.5000 ci95=0.0161 tail=0.5000
-ensemble_disagreement_planner hidden_mode_shift mean_success=0.6005 ci95=0.0099 tail=0.3995
-ensemble_disagreement_planner combined_stress mean_success=0.5526 ci95=0.0096 tail=0.4474
-conformal_risk_filter hidden_mode_shift mean_success=0.6117 ci95=0.0170 tail=0.3883
-conformal_risk_filter combined_stress mean_success=0.5688 ci95=0.0170 tail=0.4312
-proposed_branch_mechanism hidden_mode_shift mean_success=0.6845 ci95=0.0196 tail=0.3155
-proposed_branch_mechanism combined_stress mean_success=0.6721 ci95=0.0165 tail=0.3279
-oracle_branch_upper_bound hidden_mode_shift mean_success=0.7662 ci95=0.0200 tail=0.2338
-oracle_branch_upper_bound combined_stress mean_success=0.7571 ci95=0.0105 tail=0.2429
+Real MuJoCo humanoid whole-body affordance-debt benchmark for paper 65
+seeds=5 episodes=12 splits=nominal,narrow_support,high_reach,lateral_reach,weak_actuation,payload_shift,combined_shift
+combined_shift affordance_debt_mpc seq=0.733+/-0.113 energy=0.306+/-0.026 margin=0.074
+combined_shift greedy_reach_mpc seq=0.733+/-0.113 energy=0.307+/-0.025 margin=0.074
+combined_shift oracle_two_step_mpc seq=0.767+/-0.108 energy=0.302+/-0.026 margin=0.075
+combined_shift robust_balance_mpc seq=0.733+/-0.113 energy=0.307+/-0.026 margin=0.075
+high_reach affordance_debt_mpc seq=0.967+/-0.046 energy=0.263+/-0.022 margin=0.126
+high_reach greedy_reach_mpc seq=0.967+/-0.046 energy=0.262+/-0.022 margin=0.125
+high_reach oracle_two_step_mpc seq=0.967+/-0.046 energy=0.261+/-0.022 margin=0.126
+high_reach robust_balance_mpc seq=0.967+/-0.046 energy=0.262+/-0.022 margin=0.126
+lateral_reach affordance_debt_mpc seq=0.400+/-0.125 energy=0.456+/-0.033 margin=0.126
+lateral_reach greedy_reach_mpc seq=0.400+/-0.125 energy=0.457+/-0.033 margin=0.126
+lateral_reach oracle_two_step_mpc seq=0.417+/-0.126 energy=0.454+/-0.033 margin=0.125
+lateral_reach robust_balance_mpc seq=0.400+/-0.125 energy=0.456+/-0.033 margin=0.126
+narrow_support affordance_debt_mpc seq=0.483+/-0.128 energy=0.416+/-0.020 margin=0.094
+narrow_support greedy_reach_mpc seq=0.483+/-0.128 energy=0.416+/-0.020 margin=0.094
+narrow_support oracle_two_step_mpc seq=0.483+/-0.128 energy=0.416+/-0.020 margin=0.094
+narrow_support robust_balance_mpc seq=0.483+/-0.128 energy=0.416+/-0.020 margin=0.094
+nominal affordance_debt_mpc seq=0.467+/-0.127 energy=0.422+/-0.024 margin=0.141
+nominal greedy_reach_mpc seq=0.467+/-0.127 energy=0.423+/-0.024 margin=0.141
+nominal oracle_two_step_mpc seq=0.483+/-0.128 energy=0.422+/-0.024 margin=0.142
+nominal robust_balance_mpc seq=0.467+/-0.127 energy=0.422+/-0.024 margin=0.141
+payload_shift affordance_debt_mpc seq=0.483+/-0.128 energy=0.403+/-0.029 margin=0.115
+payload_shift greedy_reach_mpc seq=0.483+/-0.128 energy=0.403+/-0.029 margin=0.115
+payload_shift oracle_two_step_mpc seq=0.467+/-0.127 energy=0.401+/-0.030 margin=0.115
+payload_shift robust_balance_mpc seq=0.483+/-0.128 energy=0.403+/-0.029 margin=0.115
+weak_actuation affordance_debt_mpc seq=0.500+/-0.128 energy=0.388+/-0.027 margin=0.126
+weak_actuation greedy_reach_mpc seq=0.500+/-0.128 energy=0.388+/-0.027 margin=0.125
+weak_actuation oracle_two_step_mpc seq=0.500+/-0.128 energy=0.386+/-0.027 margin=0.127
+weak_actuation robust_balance_mpc seq=0.500+/-0.128 energy=0.388+/-0.027 margin=0.126

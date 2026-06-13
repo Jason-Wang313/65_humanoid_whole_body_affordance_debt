@@ -4,42 +4,86 @@
 \usepackage{hyperref}
 \usepackage{url}
 \usepackage{booktabs}
-\title{Humanoid Whole-Body Affordance Debt: ICLR Main-Conference Gate Archive}
+\usepackage{graphicx}
+\usepackage{multirow}
+\title{Humanoid Whole-Body Affordance Debt: A MuJoCo Negative Result}
 \author{Anonymous Authors}
 \begin{document}
 \maketitle
+
 \begin{abstract}
-This document is not an ICLR main-conference submission. It is the v3 main-conference gate for a generated robotics draft about humanoid whole-body manipulation. The original research bet was: Measure and minimize future affordance loss induced by current whole-body posture choices. After a stricter hostile review, the honest terminal decision is \textbf{KILL/ARCHIVE}. Submission-hardening version: v3.
+Humanoid whole-body manipulation can create hidden future costs: a posture that solves the current reach may reduce later reachability, balance margin, or recovery options. We test this idea in a real MuJoCo articulated-body benchmark. A standing humanoid-style model chooses an initial whole-body posture for one target and then must transition to a second target under support-width, target-height, lateral-target, weak-actuation, payload, and combined shifts. Across 5 seeds, 7 splits, 7 main methods, and 2,940 main evaluation rows, affordance-debt MPC improves over random and arm-only weak baselines but is essentially matched by greedy reach, comfort-regularized MPC, robust balance MPC, and no-debt ablations. The mechanism-level claim is therefore not supported. The correct terminal decision is \textbf{KILL/ARCHIVE}, not ICLR-main submission.
 \end{abstract}
 
-\section{Gate Decision}
-The v2 paper was workshop-only. Under the active ICLR-main standard, that is insufficient. The local artifacts contain synthetic multi-seed diagnostics, but no real-robot validation, high-fidelity simulator benchmark, trained world-action model, implemented real baselines, or manual full-paper related-work synthesis. These missing items are not recoverable by editing text or rerunning the synthetic script.
+\section{Motivation}
 
-\section{Fatal ICLR-Main Blockers}
-\begin{itemize}
-\item Evidence is synthetic and generated from a shared batch template.
-\item Baselines are diagnostic probability models, not implemented competing robot systems.
-\item Ablations do not correspond to a trained model checkpoint.
-\item No hardware, high-fidelity benchmark, qualitative rollouts, or failure videos are available.
-\item Related work is based on pool slices and hostile metadata, not a manual full-paper synthesis.
-\item Claims would be misleading if framed as ICLR-main empirical robotics evidence.
-\end{itemize}
+The seed hypothesis is appealing: humanoid posture choices may incur ``affordance debt'' by consuming support margin and reducing future whole-body options. This could matter for long-horizon loco-manipulation, where target sequences and balance constraints are not known at the first contact. The hostile prior-work set is also strong, including robot-free demonstrations for humanoid manipulation \citep{prior1,prior3}, whole-body pushing and posture planning \citep{prior2}, and modern unified humanoid loco-manipulation policies \citep{prior4,prior5,prior6,prior7,prior8}. Against this background, a new paper needs more than a plausible metric: it needs evidence that the debt term changes decisions and improves outcomes over strong baselines.
 
-\section{Hostile Prior-Work Pressure}
-The closest local hostile records include:
-\begin{itemize}
-\item BifrostUMI: Bridging Robot-Free Demonstrations and Humanoid Whole-Body Manipulation (2026)
-\item Whole-body pushing manipulation with contact posture planning of large and heavy object for humanoid robot (2015)
-\item Humanoid Manipulation Interface: Humanoid Whole-Body Manipulation from Robot-Free Demonstrations (2026)
-\item ULTRA: Unified Multimodal Control for Autonomous Humanoid Whole-Body Loco-Manipulation (2026)
-\item LHM-Humanoid: Learning a Unified Policy for Long-Horizon Humanoid Whole-Body Loco-Manipulation in Diverse Messy Environments (2025)
-\end{itemize}
-These works make generic world models, uncertainty, model-based planning, and robot policy robustness crowded. Without real empirical evidence, the remaining novelty boundary is too weak for ICLR main.
+\section{Benchmark}
 
-\section{What Remains Useful}
-The archive is still useful as an idea seed and reproducibility scaffold. The synthetic code, stress-test CSVs, reviewer attacks, and novelty-boundary docs can inform a future project. The correct next step is not more paper polishing; it is new evidence: implemented models, real baselines, manual related work, and robot or high-fidelity simulator validation.
+We replace the synthetic scaffold with a MuJoCo articulated whole-body reach benchmark. The model has a pelvis, torso, head, and two articulated arms with position actuators, gravity, inertial payload shifts, and center-of-mass measurements. A task samples an immediate target and a future target. The first posture is selected before the future target is executed; the second posture is then selected from the resulting simulated state.
 
-\section{Terminal Action}
-Decision: \textbf{KILL/ARCHIVE for ICLR main}. Do not submit this paper to ICLR main in the current form. Revival requires a substantially new empirical project.
+We evaluate seven splits: nominal, narrow support, high reach, lateral reach, weak actuation, payload shift, and combined shift. Metrics include immediate success, future success, sequential success, combined energy, support margin, effort, posture norm, and balance failure.
+
+\section{Methods}
+
+Baselines are random posture, arm-only reach, greedy reach MPC, comfort-regularized MPC, robust balance MPC, affordance-debt MPC, and oracle two-step MPC. The proposed method estimates future affordance debt from possible next targets using a fast reach/recovery/support proxy and combines it with immediate reach and balance penalties. The oracle sees the actual future target.
+
+\section{Results}
+
+\begin{table}[t]
+\centering
+\caption{Selected results. Affordance-debt MPC is matched by greedy and robust baselines; the mechanism does not earn an ICLR-main claim.}
+\begin{tabular}{llcc}
+\toprule
+Split & Method & Sequential Success & Energy \\
+\midrule
+\multirow{4}{*}{Nominal}
+& greedy reach & 0.467 & 0.423 \\
+& robust balance & 0.467 & 0.422 \\
+& affordance debt & 0.467 & 0.422 \\
+& oracle & 0.483 & 0.422 \\
+\midrule
+\multirow{4}{*}{Lateral reach}
+& greedy reach & 0.400 & 0.457 \\
+& robust balance & 0.400 & 0.456 \\
+& affordance debt & 0.400 & 0.456 \\
+& oracle & 0.417 & 0.454 \\
+\midrule
+\multirow{4}{*}{Combined shift}
+& greedy reach & 0.733 & 0.307 \\
+& robust balance & 0.733 & 0.307 \\
+& affordance debt & 0.733 & 0.306 \\
+& oracle & 0.767 & 0.302 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.98\linewidth]{../figures/affordance_debt_success_by_split.png}
+\caption{Sequential success by split. The proposed method is not separated from greedy, comfort, or robust MPC.}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.98\linewidth]{../figures/affordance_debt_ablation_energy.png}
+\caption{Combined-shift ablations. Removing future debt, balance margin, recovery cost, or comfort terms does not materially hurt performance.}
+\end{figure}
+
+\section{Ablation Failure}
+
+The combined-shift ablations are fatal to the mechanism. Full affordance-debt MPC obtains 0.733 sequential success and 0.306 energy. Removing the balance term gives 0.733 and 0.306; removing future debt gives 0.733 and 0.307; current-target-only greedy gives 0.733 and 0.307. These differences are too small to justify a new mechanism claim.
+
+\section{Limitations}
+
+This benchmark is custom MuJoCo, not hardware and not a public humanoid manipulation suite. The posture library is finite and does not include stepping, kneeling, or hand-supported balance. The debt estimator is a lightweight reach/recovery/support proxy. These limitations would already prevent a final ICLR-main claim; more importantly, the method fails the internal falsifier even in this controlled benchmark.
+
+\section{Conclusion}
+
+Affordance debt is a useful diagnostic idea, but this implementation does not improve sequential humanoid reaching over simpler posture selectors. The honest terminal decision is \textbf{KILL/ARCHIVE}.
+
+\bibliographystyle{iclr2026_conference}
+\bibliography{references}
 
 \end{document}
