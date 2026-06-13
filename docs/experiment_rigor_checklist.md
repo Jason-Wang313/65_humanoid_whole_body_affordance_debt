@@ -10,10 +10,10 @@
 
 ## ICLR Main Bar
 - [ ] Real-robot validation.
-- [ ] High-fidelity simulator benchmark.
-- [ ] Implemented learned model.
-- [ ] Implemented real competing baselines.
+- [x] High-fidelity simulator benchmark.
+- [x] Implemented affordance-debt mechanism.
+- [x] Implemented real competing baselines.
 - [ ] Manual related-work synthesis.
-- [ ] Paper-specific qualitative figures.
+- [x] Paper-specific empirical figures.
 
-Decision: fail ICLR main empirical-rigor gate; archive.
+Decision: real-evidence KILL_ARCHIVE. The empirical-rigor blocker was partially resolved, but the mechanism itself is falsified by greedy/comfort/robust baselines and no-debt ablations.

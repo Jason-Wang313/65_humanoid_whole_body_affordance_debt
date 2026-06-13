@@ -4,8 +4,8 @@ Decision: KILL_ARCHIVE
 
 ICLR main-conference readiness: NO.
 
-Reason: The strongest locally available evidence is synthetic and template-generated. The paper lacks real-robot or high-fidelity simulator validation, implemented learned baselines, manual full-paper related-work depth, and paper-specific empirical figures. These are not recoverable without new external experiments or a substantially new research project.
+Reason: The paper now has real MuJoCo articulated whole-body evidence, implemented baselines, ablations, pairwise tests, and figures. The evidence falsifies the core mechanism: affordance-debt MPC is essentially matched by greedy reach, comfort-regularized MPC, robust balance MPC, and no-debt ablations on all stress splits.
 
-Honest terminal action: archive/kill for ICLR main. Do not submit this paper to ICLR main in its current form.
+Honest terminal action: archive/kill for ICLR main. Do not submit this paper to ICLR main.
 
-Revival condition: rebuild as a real empirical robotics paper with implemented model, strong real baselines, manual related work, and deployment evidence.
+Revival condition: a substantially new method must show that future-affordance debt changes first-posture selection and improves sequential success over greedy/robust baselines on hardware or a public high-fidelity humanoid benchmark.
