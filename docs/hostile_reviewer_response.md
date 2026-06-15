@@ -1,26 +1,30 @@
-        # Hostile Reviewer Response
+# Hostile Reviewer Response
 
-        Paper: 65 Humanoid Whole-Body Affordance Debt
+Paper: 65 Humanoid Whole-Body Affordance Debt
 
-        ## Strongest Technical Threats
-        - BifrostUMI: Bridging Robot-Free Demonstrations and Humanoid Whole-Body Manipulation (2026)
-- Whole-body pushing manipulation with contact posture planning of large and heavy object for humanoid robot (2015)
-- Humanoid Manipulation Interface: Humanoid Whole-Body Manipulation from Robot-Free Demonstrations (2026)
-- ULTRA: Unified Multimodal Control for Autonomous Humanoid Whole-Body Loco-Manipulation (2026)
-- LHM-Humanoid: Learning a Unified Policy for Long-Horizon Humanoid Whole-Body Loco-Manipulation in Diverse Messy Environments (2025)
-- Humanoid Locomotion and Manipulation: Current Progress and Challenges in Control, Planning, and Learning (2025)
-- Opt2Skill: Imitating Dynamically-feasible Whole-Body Trajectories for Versatile Humanoid Loco-Manipulation (2024)
-- TrajBooster: Boosting Humanoid Whole-Body Manipulation via Trajectory-Centric Learning (2025)
+Continuation audit date: 2026-06-15
 
-        ## ICLR Main Response
-        A hostile ICLR reviewer would be correct to reject this as a main-conference submission. The v2 paper has reproducible synthetic evidence and careful limitations, but it does not contain the real robot, high-fidelity simulator, learned model, or manual related-work depth needed for the ICLR main track.
+## Strongest Technical Threats
 
-        ## Honest Action
-        The paper is marked `KILL_ARCHIVE`. This avoids converting a generated workshop-style idea into an overstated main-conference claim.
+- Whole-body humanoid manipulation and contact-posture planning.
+- Robot-free demonstration systems for humanoid whole-body manipulation.
+- Unified humanoid loco-manipulation policies and trajectory-centric humanoid learning.
+- Robust balance/recovery planning and comfort-regularized whole-body MPC.
 
-        ## What Would Be Needed To Revive
-        - Real robot or high-fidelity benchmark experiments.
-        - Implemented model and baselines, not synthetic probability tables.
-        - Manual full-paper related-work audit.
-        - Paper-specific writing and figures.
-        - Evidence that the core mechanism is learned and useful under deployment shift.
+## ICLR Main Response
+
+A hostile ICLR reviewer would no longer be correct to reject this paper for synthetic-only evidence. The v4 rebuild contains a real MuJoCo articulated-body benchmark, implemented affordance-debt scoring, paired baselines, stress splits, ablations, confidence intervals, figures, and a rebuilt PDF.
+
+The reviewer would still be correct to reject the paper as an ICLR-main submission because the real evidence falsifies the current mechanism. Affordance-debt MPC is essentially matched by greedy reach, comfort-regularized MPC, robust balance MPC, and no-debt ablations. The future-debt term does not create a meaningful performance gap.
+
+## Honest Action
+
+The current terminal state is `KILL_ARCHIVE`. This is a real negative result, not merely an archive caused by missing simulator evidence.
+
+## What Would Be Needed To Revive
+
+- A substantially new future-affordance mechanism that changes first-posture selection.
+- Clear gains over greedy, comfort, and robust balance baselines.
+- Ablations proving the future-debt term is necessary.
+- Hardware or public humanoid benchmark validation.
+- Manual full-paper related-work synthesis.
