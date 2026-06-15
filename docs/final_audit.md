@@ -10,3 +10,16 @@
 8. Exact Downloads PDF path: `C:/Users/wangz/Downloads/65.pdf`
 9. GitHub URL: https://github.com/Jason-Wang313/65_humanoid_whole_body_affordance_debt
 10. Confirmation: no visible Desktop copy was requested or made.
+
+## 2026-06-15 Continuation Audit
+
+Executed `docs/paper65_iclr_submission_execution_plan_20260615.md`.
+
+Additional verification:
+- Python compile passed for `src/run_experiment.py`.
+- CSV finite/schema audit passed for main, paired, ablation, seed, stress, and negative-case result files.
+- LaTeX/BibTeX/PDF rebuild completed with bibliography key hygiene fixed and `C:/Users/wangz/Downloads/65.pdf` refreshed.
+- `C:/Users/wangz/Desktop/65.pdf` is absent.
+- Stale hostile-review wording was corrected to state that current `KILL_ARCHIVE` rests on real negative evidence.
+
+Decision remains `KILL_ARCHIVE`, not ICLR-main-ready. See `docs/paper65_terminal_audit_20260615.md`.

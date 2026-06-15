@@ -2,6 +2,10 @@
 
 Paper: 65 humanoid_whole_body_affordance_debt
 
+## 2026-06-15 Continuation Note
+
+The older rounds below document the v3 synthetic-scaffold archive decision. They are retained as history, but the current terminal state is based on v4 real-MuJoCo evidence: `KILL_ARCHIVE` remains correct because affordance-debt MPC is matched by greedy/comfort/robust/no-debt baselines, not because evidence is synthetic-only.
+
 This v3 pass applies the ICLR main-conference bar. The result is an honest archive decision, not a workshop resubmission.
 
 ## ICLR Main Gate Round 1
