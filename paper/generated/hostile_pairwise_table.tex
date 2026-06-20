@@ -1,0 +1,40 @@
+\begin{table}[t]
+\centering
+\caption{Paired BAR-MPC deltas on hostile splits. Positive success delta and positive energy improvement favor BAR-MPC.}
+\label{tab:hostile-pairwise}
+\scriptsize
+\begin{tabular}{llrrrr}
+\toprule
+Split & Baseline & $\Delta$ success & Energy impr. & $\Delta$ margin & First-choice diff. \\
+\midrule
+combined\_shift & Greedy reach & 0.000 & 0.000 & 0.002 & 21.3\% \\
+combined\_shift & Comfort MPC & 0.000 & 0.000 & 0.001 & 14.1\% \\
+combined\_shift & Robust balance & 0.005 & -0.000 & 0.001 & 5.7\% \\
+combined\_shift & Future dist. & 0.000 & 0.000 & 0.001 & 10.4\% \\
+combined\_shift & Linear debt & 0.000 & -0.000 & -0.002 & 28.6\% \\
+combined\_shift & BAR no-online & 0.000 & 0.000 & 0.000 & 0.0\% \\
+combined\_shift & Oracle & -0.031 & -0.008 & 0.007 & 50.5\% \\
+opposite\_side\_sequence & Greedy reach & 0.010 & 0.003 & 0.005 & 20.8\% \\
+opposite\_side\_sequence & Comfort MPC & 0.005 & 0.002 & 0.004 & 17.2\% \\
+opposite\_side\_sequence & Robust balance & 0.000 & 0.000 & 0.000 & 4.2\% \\
+opposite\_side\_sequence & Future dist. & 0.005 & 0.002 & 0.003 & 12.5\% \\
+opposite\_side\_sequence & Linear debt & -0.005 & -0.001 & -0.001 & 6.2\% \\
+opposite\_side\_sequence & BAR no-online & 0.000 & 0.000 & 0.000 & 0.0\% \\
+opposite\_side\_sequence & Oracle & -0.021 & -0.004 & -0.007 & 52.6\% \\
+support\_reversal & Greedy reach & 0.010 & 0.004 & 0.009 & 50.5\% \\
+support\_reversal & Comfort MPC & 0.010 & 0.003 & 0.007 & 45.3\% \\
+support\_reversal & Robust balance & 0.000 & -0.000 & -0.001 & 9.9\% \\
+support\_reversal & Future dist. & 0.010 & 0.002 & 0.007 & 43.2\% \\
+support\_reversal & Linear debt & 0.005 & 0.001 & 0.002 & 22.9\% \\
+support\_reversal & BAR no-online & 0.000 & 0.000 & 0.000 & 0.0\% \\
+support\_reversal & Oracle & -0.010 & -0.005 & 0.006 & 57.8\% \\
+high\_lateral\_payload & Greedy reach & 0.000 & 0.003 & 0.006 & 27.1\% \\
+high\_lateral\_payload & Comfort MPC & 0.000 & 0.002 & 0.005 & 22.4\% \\
+high\_lateral\_payload & Robust balance & 0.000 & -0.000 & -0.002 & 8.8\% \\
+high\_lateral\_payload & Future dist. & 0.000 & 0.002 & 0.005 & 24.0\% \\
+high\_lateral\_payload & Linear debt & -0.005 & 0.000 & 0.001 & 8.8\% \\
+high\_lateral\_payload & BAR no-online & 0.000 & 0.000 & 0.000 & 0.0\% \\
+high\_lateral\_payload & Oracle & -0.005 & -0.003 & -0.004 & 45.8\% \\
+\bottomrule
+\end{tabular}
+\end{table}

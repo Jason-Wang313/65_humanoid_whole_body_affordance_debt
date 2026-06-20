@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering
+\caption{Frozen decision gates. The failure is methodological, not formatting-related.}
+\label{tab:gates}
+\small
+\begin{tabular}{p{0.22\linewidth}p{0.13\linewidth}p{0.55\linewidth}}
+\toprule
+Gate & Status & Evidence \\
+\midrule
+Weak baseline gate & \textbf{PASS} & BAR-MPC beats random and arm-only baselines in aggregate. \\
+Strong baseline gate & \textbf{FAIL} & Matched or beaten by Greedy reach, Robust balance \\
+Mechanism ablation gate & \textbf{FAIL} & Non-identifying ablations: BAR no-online on combined\_shift; Small future sample on combined\_shift; BAR no-online on opposite\_side\_sequence; No future debt on opposite\_side\_sequence; No tail debt on opposite\_side\_sequence; Mean future only on opposite\_side\_sequence \\
+Terminal decision & \textbf{KILL\_ARCHIVE} & Archive rather than submit: evidence does not support an ICLR-main mechanism claim. \\
+\bottomrule
+\end{tabular}
+\end{table}

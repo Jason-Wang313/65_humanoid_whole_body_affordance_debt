@@ -19,6 +19,9 @@ from pathlib import Path
 from statistics import mean, stdev
 from typing import Iterable
 
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import mujoco
 import numpy as np
@@ -105,9 +108,11 @@ class PreparedEpisode:
     candidates: list[Candidate]
     first_outcomes: list[SimOutcome]
     future_candidates: list[Candidate]
-    debt_full: list[float]
+    debt_mean: list[float]
+    debt_tail: list[float]
     debt_no_balance: list[float]
     debt_no_recovery: list[float]
+    debt_no_hand_switch: list[float]
     debt_small_sample: list[float]
 
 
@@ -117,18 +122,28 @@ MAIN_METHODS = [
     "greedy_reach_mpc",
     "comfort_regularized_mpc",
     "robust_balance_mpc",
-    "affordance_debt_mpc",
+    "current_target_only_greedy",
+    "future_distribution_mpc",
+    "learned_linear_debt_proxy",
+    "bar_mpc_v5",
+    "bar_mpc_no_online",
     "oracle_two_step_mpc",
 ]
 
 ABLATION_METHODS = [
-    "affordance_debt_mpc",
+    "bar_mpc_v5",
+    "bar_mpc_no_online",
     "no_future_debt",
+    "no_tail_debt",
     "no_balance_margin",
     "no_recovery_cost",
+    "no_hand_switch_cost",
     "no_torque_comfort",
+    "mean_future_only",
     "small_future_sample",
     "current_target_only_greedy",
+    "robust_balance_mpc",
+    "oracle_two_step_mpc",
 ]
 
 SPLITS = {
@@ -215,6 +230,42 @@ SPLITS = {
         "z": (1.18, 1.56),
         "future_y": (-0.62, 0.62),
         "perturbation": 0.05,
+    },
+    "opposite_side_sequence": {
+        "support_width": 0.30,
+        "support_depth": 0.30,
+        "kp_scale": 0.72,
+        "payload": 0.14,
+        "damping": 1.18,
+        "x": (0.42, 0.64),
+        "y": (-0.62, 0.62),
+        "z": (1.12, 1.48),
+        "future_y": (-0.66, 0.66),
+        "perturbation": 0.055,
+    },
+    "support_reversal": {
+        "support_width": 0.25,
+        "support_depth": 0.27,
+        "kp_scale": 0.64,
+        "payload": 0.12,
+        "damping": 1.28,
+        "x": (0.38, 0.61),
+        "y": (-0.52, 0.52),
+        "z": (1.08, 1.46),
+        "future_y": (-0.64, 0.64),
+        "perturbation": 0.070,
+    },
+    "high_lateral_payload": {
+        "support_width": 0.31,
+        "support_depth": 0.29,
+        "kp_scale": 0.60,
+        "payload": 0.30,
+        "damping": 1.40,
+        "x": (0.46, 0.68),
+        "y": (-0.66, 0.66),
+        "z": (1.26, 1.60),
+        "future_y": (-0.70, 0.70),
+        "perturbation": 0.060,
     },
 }
 
@@ -439,6 +490,13 @@ def candidate_postures(target: np.ndarray, task: TaskSpec) -> list[Candidate]:
         ("other_arm_only", other, 0.0, 0.0, 0.0, 0.0),
         ("debt_safe_center", preferred, 0.015, 0.0, 0.02, 0.0),
         ("aggressive_reach", preferred, 0.095, 0.125 * target_side, -0.22, 0.24 * target_side),
+        ("reserve_opposite", preferred, -0.015, -0.055 * target_side, 0.09, -0.16 * target_side),
+        ("hand_switch_ready", other, 0.020, -0.035 * target_side, 0.02, -0.06 * target_side),
+        ("centered_low_torque", preferred, 0.005, 0.0, 0.06, 0.0),
+        ("future_counterlean", preferred, -0.045, -0.100 * target_side, 0.16, -0.24 * target_side),
+        ("cross_body_reach", other, 0.060, 0.065 * target_side, -0.14, 0.10 * target_side),
+        ("deep_forward_commit", preferred, 0.115, 0.035 * target_side, -0.30, 0.06 * target_side),
+        ("wide_support_reserve", preferred, -0.035, 0.018 * target_side, 0.12, -0.06 * target_side),
     ]
     out = []
     seen: set[tuple[float, ...]] = set()
@@ -477,9 +535,34 @@ def sample_task(split: str, seed: int, episode: int) -> TaskSpec:
     rng = random.Random(650003 + 100003 * seed + 7907 * episode + sum(ord(c) for c in split))
     first = sample_target(rng, cfg, future=False)
     future = sample_target(rng, cfg, future=True)
+    if split in {"opposite_side_sequence", "support_reversal", "high_lateral_payload"}:
+        first_side = 1.0 if rng.random() < 0.5 else -1.0
+        first = (
+            rng.uniform(*cfg["x"]),
+            first_side * rng.uniform(0.38, max(0.40, abs(cfg["y"][1]))),
+            rng.uniform(*cfg["z"]),
+        )
+        future_side = -first_side if split != "support_reversal" or episode % 3 != 0 else first_side
+        future = (
+            rng.uniform(*cfg["x"]),
+            future_side * rng.uniform(0.42, max(0.44, abs(cfg["future_y"][1]))),
+            rng.uniform(*cfg["z"]),
+        )
     samples = [future]
     for _ in range(5):
-        samples.append(sample_target(rng, cfg, future=True))
+        if split in {"opposite_side_sequence", "support_reversal", "high_lateral_payload"}:
+            side = -1.0 if first[1] >= 0 else 1.0
+            if split == "support_reversal" and rng.random() < 0.35:
+                side *= -1.0
+            samples.append(
+                (
+                    rng.uniform(*cfg["x"]),
+                    side * rng.uniform(0.34, max(0.36, abs(cfg["future_y"][1]))),
+                    rng.uniform(*cfg["z"]),
+                )
+            )
+        else:
+            samples.append(sample_target(rng, cfg, future=True))
     return TaskSpec(
         split=split,
         dyn=DynParams(float(cfg["kp_scale"]), float(cfg["payload"]), float(cfg["damping"])),
@@ -529,9 +612,12 @@ def analytic_reach_proxy(q: np.ndarray, target: np.ndarray, hand: str) -> float:
 def future_debt(
     task: TaskSpec,
     current_q: np.ndarray,
+    current_hand: str,
     samples: Iterable[tuple[float, float, float]],
     include_balance: bool = True,
     include_recovery: bool = True,
+    include_hand_switch: bool = True,
+    tail: bool = False,
 ) -> float:
     debts = []
     for future_target in samples:
@@ -544,9 +630,15 @@ def future_debt(
             tilt = float(math.sqrt(float(q[2]) ** 2 + float(q[3]) ** 2))
             recovery = float(np.linalg.norm((q - current_q) * POSTURE_WEIGHTS)) if include_recovery else 0.0
             balance = max(0.0, task.perturbation - margin) if include_balance else 0.0
-            pseudo = dist + 0.120 * recovery + 0.75 * balance + 0.022 * tilt
+            switch = 1.0 if include_hand_switch and cand.hand != current_hand else 0.0
+            lateral_commit = abs(float(q[1]) - float(current_q[1])) + 0.35 * abs(float(q[3]) - float(current_q[3]))
+            pseudo = dist + 0.130 * recovery + 0.85 * balance + 0.030 * switch + 0.040 * lateral_commit + 0.022 * tilt
             best = min(best, pseudo)
         debts.append(best)
+    if tail:
+        ordered = sorted(debts, reverse=True)
+        k = max(1, int(math.ceil(0.40 * len(ordered))))
+        return float(mean(ordered[:k]))
     return float(mean(debts))
 
 
@@ -562,23 +654,42 @@ def prepare_episode(split: str, seed: int, episode: int) -> PreparedEpisode:
         for c in candidates
     ]
     future_candidates = candidate_postures(future_target, task)
-    debt_full = [
-        future_debt(task, outcome.qpos, task.future_samples, include_balance=True, include_recovery=True)
-        for outcome in first_outcomes
+    debt_mean = [
+        future_debt(task, outcome.qpos, candidates[idx].hand, task.future_samples, include_balance=True, include_recovery=True)
+        for idx, outcome in enumerate(first_outcomes)
+    ]
+    debt_tail = [
+        future_debt(task, outcome.qpos, candidates[idx].hand, task.future_samples, include_balance=True, include_recovery=True, tail=True)
+        for idx, outcome in enumerate(first_outcomes)
     ]
     debt_no_balance = [
-        future_debt(task, outcome.qpos, task.future_samples, include_balance=False, include_recovery=True)
-        for outcome in first_outcomes
+        future_debt(task, outcome.qpos, candidates[idx].hand, task.future_samples, include_balance=False, include_recovery=True)
+        for idx, outcome in enumerate(first_outcomes)
     ]
     debt_no_recovery = [
-        future_debt(task, outcome.qpos, task.future_samples, include_balance=True, include_recovery=False)
-        for outcome in first_outcomes
+        future_debt(task, outcome.qpos, candidates[idx].hand, task.future_samples, include_balance=True, include_recovery=False)
+        for idx, outcome in enumerate(first_outcomes)
+    ]
+    debt_no_hand_switch = [
+        future_debt(task, outcome.qpos, candidates[idx].hand, task.future_samples, include_balance=True, include_recovery=True, include_hand_switch=False)
+        for idx, outcome in enumerate(first_outcomes)
     ]
     debt_small_sample = [
-        future_debt(task, outcome.qpos, task.future_samples[:2], include_balance=True, include_recovery=True)
-        for outcome in first_outcomes
+        future_debt(task, outcome.qpos, candidates[idx].hand, task.future_samples[:2], include_balance=True, include_recovery=True)
+        for idx, outcome in enumerate(first_outcomes)
     ]
-    return PreparedEpisode(task, candidates, first_outcomes, future_candidates, debt_full, debt_no_balance, debt_no_recovery, debt_small_sample)
+    return PreparedEpisode(
+        task,
+        candidates,
+        first_outcomes,
+        future_candidates,
+        debt_mean,
+        debt_tail,
+        debt_no_balance,
+        debt_no_recovery,
+        debt_no_hand_switch,
+        debt_small_sample,
+    )
 
 
 def first_cost(outcome: SimOutcome) -> float:
@@ -640,26 +751,65 @@ def choose_first(method: str, prep: PreparedEpisode, rng: random.Random, cache: 
             _, second = best_second(prep, idx, cache)
             scores.append(first_cost(out) + second.energy)
         return int(np.argmin(scores)), 0.0
-    if method in ABLATION_METHODS or method == "affordance_debt_mpc":
+    if method == "future_distribution_mpc":
+        scores = [
+            first_cost(out) + 0.78 * float(prep.debt_mean[idx]) + 0.018 * out.effort + 0.018 * out.posture_norm
+            for idx, out in enumerate(first)
+        ]
+        chosen = int(np.argmin(scores))
+        return chosen, float(prep.debt_mean[chosen])
+    if method == "learned_linear_debt_proxy":
+        scores = []
+        for idx, out in enumerate(first):
+            c = candidates[idx]
+            linear_debt = (
+                0.46 * float(prep.debt_no_balance[idx])
+                + 0.18 * max(0.0, prep.task.perturbation - out.support_margin)
+                + 0.055 * out.posture_norm
+                + 0.040 * abs(c.root_motion)
+                + 0.030 * abs(c.torso_motion)
+            )
+            scores.append(first_cost(out) + linear_debt)
+        chosen = int(np.argmin(scores))
+        return chosen, float(prep.debt_no_balance[chosen])
+    if method in ABLATION_METHODS or method in {"bar_mpc_v5", "bar_mpc_no_online"}:
         if method == "no_future_debt":
-            debt = [0.0 for _ in first]
+            mean_debt = [0.0 for _ in first]
+            tail_debt = [0.0 for _ in first]
+        elif method == "no_tail_debt":
+            mean_debt = prep.debt_mean
+            tail_debt = [0.0 for _ in first]
         elif method == "no_balance_margin":
-            debt = prep.debt_no_balance
+            mean_debt = prep.debt_no_balance
+            tail_debt = prep.debt_no_balance
         elif method == "no_recovery_cost":
-            debt = prep.debt_no_recovery
+            mean_debt = prep.debt_no_recovery
+            tail_debt = prep.debt_no_recovery
+        elif method == "no_hand_switch_cost":
+            mean_debt = prep.debt_no_hand_switch
+            tail_debt = prep.debt_no_hand_switch
+        elif method == "mean_future_only":
+            mean_debt = prep.debt_mean
+            tail_debt = [0.0 for _ in first]
         elif method == "small_future_sample":
-            debt = prep.debt_small_sample
+            mean_debt = prep.debt_small_sample
+            tail_debt = prep.debt_small_sample
         elif method == "current_target_only_greedy":
-            debt = [0.0 for _ in first]
+            mean_debt = [0.0 for _ in first]
+            tail_debt = [0.0 for _ in first]
         else:
-            debt = prep.debt_full
+            mean_debt = prep.debt_mean
+            tail_debt = prep.debt_tail
         scores = []
         for idx, out in enumerate(first):
             effort_term = 0.0 if method == "no_torque_comfort" else 0.018 * out.effort + 0.018 * out.posture_norm
             balance = 0.0 if method == "no_balance_margin" else 0.55 * robust_margin_penalty(prep, idx)
-            scores.append(first_cost(out) + 0.62 * float(debt[idx]) + effort_term + balance)
+            if method == "current_target_only_greedy":
+                scores.append(first_cost(out))
+            else:
+                scores.append(first_cost(out) + 0.42 * float(mean_debt[idx]) + 0.46 * float(tail_debt[idx]) + effort_term + balance)
         chosen = int(np.argmin(scores))
-        return chosen, float(debt[chosen])
+        return chosen, float(mean_debt[chosen])
     raise ValueError(method)
 
 
@@ -697,6 +847,8 @@ def evaluate_method(method: str, prep: PreparedEpisode, seed: int, episode: int,
         "oracle_second_energy": oracle_second_energy,
         "energy_regret": combined_energy - oracle_second_energy,
         "affordance_debt": chosen_debt,
+        "mean_future_debt": prep.debt_mean[first_idx],
+        "tail_future_debt": prep.debt_tail[first_idx],
         "first_support_margin": first.support_margin,
         "future_support_margin": second.support_margin,
         "first_balance_failure": first.balance_failure,
@@ -758,8 +910,10 @@ def summarize(rows: list[dict], keys: list[str]) -> list[dict]:
         fut = [float(v["future_success"]) for v in vals]
         energy = [float(v["combined_energy"]) for v in vals]
         debt = [float(v["affordance_debt"]) for v in vals]
+        tail_debt = [float(v.get("tail_future_debt", 0.0)) for v in vals]
         margins = [float(v["future_support_margin"]) for v in vals]
         failures = [max(float(v["first_balance_failure"]), float(v["future_balance_failure"])) for v in vals]
+        unique_first = len({v["first_candidate_name"] for v in vals})
         summary = {k: key[i] for i, k in enumerate(keys)}
         summary.update(
             {
@@ -771,15 +925,17 @@ def summarize(rows: list[dict], keys: list[str]) -> list[dict]:
                 "combined_energy_mean": mean(energy),
                 "combined_energy_ci95": ci95(energy),
                 "affordance_debt_mean": mean(debt),
+                "tail_future_debt_mean": mean(tail_debt),
                 "future_support_margin_mean": mean(margins),
                 "balance_failure_rate": mean(failures),
+                "unique_first_postures": unique_first,
             }
         )
         out.append(summary)
     return out
 
 
-def paired_stats(rows: list[dict], proposed: str = "affordance_debt_mpc") -> list[dict]:
+def paired_stats(rows: list[dict], proposed: str = "bar_mpc_v5") -> list[dict]:
     baselines = [m for m in MAIN_METHODS if m != proposed]
     by_key: dict[tuple, dict[str, dict]] = {}
     for row in rows:
@@ -794,6 +950,7 @@ def paired_stats(rows: list[dict], proposed: str = "affordance_debt_mpc") -> lis
             success_delta = [float(p["sequential_success"]) - float(b["sequential_success"]) for p, b in paired]
             energy_improvement = [float(b["combined_energy"]) - float(p["combined_energy"]) for p, b in paired]
             margin_delta = [float(p["future_support_margin"]) - float(b["future_support_margin"]) for p, b in paired]
+            first_choice_delta = [float(p["first_candidate"] != b["first_candidate"]) for p, b in paired]
             p_val = 1.0
             if len(energy_improvement) > 1 and stdev(energy_improvement) > 1e-12:
                 p_val = float(stats.ttest_1samp(energy_improvement, 0.0).pvalue)
@@ -810,6 +967,7 @@ def paired_stats(rows: list[dict], proposed: str = "affordance_debt_mpc") -> lis
                     "energy_improvement_ci95": ci95(energy_improvement),
                     "future_margin_delta_mean": mean(margin_delta),
                     "future_margin_delta_ci95": ci95(margin_delta),
+                    "first_choice_diff_rate": mean(first_choice_delta),
                     "energy_ttest_p": p_val,
                 }
             )
@@ -843,16 +1001,17 @@ def plot_results(metrics: list[dict], ablation: list[dict]) -> None:
         "greedy_reach_mpc",
         "comfort_regularized_mpc",
         "robust_balance_mpc",
-        "affordance_debt_mpc",
+        "future_distribution_mpc",
+        "bar_mpc_v5",
         "oracle_two_step_mpc",
     ]
-    labels = ["ArmOnly", "Greedy", "Comfort", "Robust", "Debt", "Oracle"]
+    labels = ["ArmOnly", "Greedy", "Comfort", "Robust", "FutureDist", "BAR", "Oracle"]
     x = np.arange(len(splits))
-    width = 0.13
+    width = 0.11
     plt.figure(figsize=(12.5, 4.8))
     for idx, method in enumerate(methods):
         vals = [float(next(row["sequential_success"] for row in metrics if row["split"] == split and row["method"] == method)) for split in splits]
-        plt.bar(x + (idx - 2.5) * width, vals, width=width, label=labels[idx])
+        plt.bar(x + (idx - (len(methods) - 1) / 2.0) * width, vals, width=width, label=labels[idx])
     plt.xticks(x, splits, rotation=20, ha="right")
     plt.ylabel("Sequential success")
     plt.ylim(0, 1.02)
@@ -865,7 +1024,7 @@ def plot_results(metrics: list[dict], ablation: list[dict]) -> None:
     plt.figure(figsize=(12.5, 4.8))
     for idx, method in enumerate(methods):
         vals = [float(next(row["combined_energy_mean"] for row in metrics if row["split"] == split and row["method"] == method)) for split in splits]
-        plt.bar(x + (idx - 2.5) * width, vals, width=width, label=labels[idx])
+        plt.bar(x + (idx - (len(methods) - 1) / 2.0) * width, vals, width=width, label=labels[idx])
     plt.xticks(x, splits, rotation=20, ha="right")
     plt.ylabel("Combined energy, lower is better")
     plt.title("Whole-body reach energy by split")
@@ -884,19 +1043,25 @@ def plot_results(metrics: list[dict], ablation: list[dict]) -> None:
     plt.close()
 
     plt.figure(figsize=(9.2, 4.8))
+    margin_split = "combined_shift" if any(row["split"] == "combined_shift" for row in metrics) else splits[-1]
     vals = [
-        float(next(row["future_support_margin_mean"] for row in metrics if row["split"] == "combined_shift" and row["method"] == method))
+        float(next(row["future_support_margin_mean"] for row in metrics if row["split"] == margin_split and row["method"] == method))
         for method in methods
     ]
     plt.bar(labels, vals)
     plt.ylabel("Future support margin")
-    plt.title("Combined-shift future balance margin")
+    plt.title(f"{margin_split} future balance margin")
     plt.tight_layout()
     plt.savefig(FIGURES / "affordance_debt_margin_combined.png", dpi=180)
     plt.close()
 
 
 def run(args: argparse.Namespace) -> None:
+    global RESULTS, FIGURES
+    RESULTS = Path(args.results_dir)
+    FIGURES = Path(args.figures_dir)
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    FIGURES.mkdir(parents=True, exist_ok=True)
     raw_rows: list[dict] = []
     pool = ProcessPoolExecutor(max_workers=args.workers) if args.workers > 1 else None
     try:
@@ -912,26 +1077,29 @@ def run(args: argparse.Namespace) -> None:
             print(f"completed main split={split} rows={len(raw_rows)}", flush=True)
 
         ablation_rows: list[dict] = []
-        for seed in range(args.seeds):
+        for split in args.ablation_splits:
             tasks = [
-                ("combined_shift", seed, episode, tuple(ABLATION_METHODS), True)
+                (split, seed, episode, tuple(ABLATION_METHODS), True)
+                for seed in range(args.seeds)
                 for episode in range(args.episodes)
             ]
             ablation_rows.extend(execute_tasks(tasks, args.workers, args.chunksize, pool))
-            write_rows(RESULTS / "affordance_debt_ablation.partial.csv", format_rows(summarize(ablation_rows, ["method"])))
-            print(f"completed ablation seed={seed} rows={len(ablation_rows)}", flush=True)
+            write_rows(RESULTS / "affordance_debt_ablation_raw.partial.csv", format_rows(ablation_rows))
+            write_rows(RESULTS / "affordance_debt_ablation.partial.csv", format_rows(summarize(ablation_rows, ["split", "method"])))
+            print(f"completed ablation split={split} rows={len(ablation_rows)}", flush=True)
     finally:
         if pool is not None:
             pool.shutdown()
 
     main_summary = summarize(raw_rows, ["split", "method"])
     seed_summary = summarize(raw_rows, ["split", "method", "seed"])
-    ablation_summary = summarize(ablation_rows, ["method"])
+    ablation_summary = summarize(ablation_rows, ["split", "method"])
     pairwise = paired_stats(raw_rows)
 
     write_rows(RESULTS / "affordance_debt_raw.csv", format_rows(raw_rows))
     write_rows(RESULTS / "affordance_debt_metrics.csv", format_rows(main_summary))
     write_rows(RESULTS / "affordance_debt_seed_metrics.csv", format_rows(seed_summary))
+    write_rows(RESULTS / "affordance_debt_ablation_raw.csv", format_rows(ablation_rows))
     write_rows(RESULTS / "affordance_debt_ablation.csv", format_rows(ablation_summary))
     write_rows(RESULTS / "affordance_debt_pairwise.csv", format_rows(pairwise))
 
@@ -961,10 +1129,10 @@ def run(args: argparse.Namespace) -> None:
     write_rows(RESULTS / "negative_cases.csv", negative_cases)
     plot_results(main_summary, ablation_summary)
     with (RESULTS / "summary.txt").open("w", encoding="utf-8") as f:
-        f.write("Real MuJoCo humanoid whole-body affordance-debt benchmark for paper 65\n")
+        f.write("Real MuJoCo humanoid whole-body affordance-debt benchmark for paper 65, v5\n")
         f.write(f"seeds={args.seeds} episodes={args.episodes} splits={','.join(args.splits)}\n")
         for row in main_summary:
-            if row["method"] in {"affordance_debt_mpc", "greedy_reach_mpc", "robust_balance_mpc", "oracle_two_step_mpc"}:
+            if row["method"] in {"bar_mpc_v5", "greedy_reach_mpc", "robust_balance_mpc", "future_distribution_mpc", "oracle_two_step_mpc"}:
                 f.write(
                     f"{row['split']} {row['method']} seq={row['sequential_success']:.3f}+/-{row['sequential_success_ci95']:.3f} "
                     f"energy={row['combined_energy_mean']:.3f}+/-{row['combined_energy_ci95']:.3f} "
@@ -975,11 +1143,14 @@ def run(args: argparse.Namespace) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seeds", type=int, default=5)
-    parser.add_argument("--episodes", type=int, default=12)
+    parser.add_argument("--seeds", type=int, default=8)
+    parser.add_argument("--episodes", type=int, default=24)
     parser.add_argument("--splits", nargs="+", default=list(SPLITS.keys()))
+    parser.add_argument("--ablation-splits", nargs="+", default=["combined_shift", "opposite_side_sequence"])
     parser.add_argument("--workers", type=int, default=max(1, min(4, (os.cpu_count() or 2) - 1)))
     parser.add_argument("--chunksize", type=int, default=1)
+    parser.add_argument("--results-dir", default=str(RESULTS))
+    parser.add_argument("--figures-dir", default=str(FIGURES))
     return parser.parse_args()
 
 
