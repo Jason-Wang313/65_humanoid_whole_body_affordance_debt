@@ -1,0 +1,38 @@
+\begin{table}[t]
+\centering
+\caption{Frozen ablation results on the two pre-registered hostile splits. Ablations matching BAR-MPC are mechanism-level failures, not cosmetic ties.}
+\label{tab:ablation}
+\scriptsize
+\begin{tabular}{llrrrrr}
+\toprule
+Split & Method & Episodes & Seq. & Energy & Tail debt & Unique first \\
+\midrule
+combined\_shift & Robust balance & 192 & 0.776 & 0.302 & 0.071 & 12.000 \\
+combined\_shift & Current-only & 192 & 0.781 & 0.303 & 0.071 & 12.000 \\
+combined\_shift & BAR-MPC & 192 & 0.781 & 0.302 & 0.071 & 12.000 \\
+combined\_shift & BAR no-online & 192 & 0.781 & 0.302 & 0.071 & 12.000 \\
+combined\_shift & Oracle & 192 & 0.812 & 0.295 & 0.071 & 12.000 \\
+combined\_shift & Mean future only & 192 & 0.776 & 0.302 & 0.071 & 12.000 \\
+combined\_shift & No balance margin & 192 & 0.781 & 0.303 & 0.071 & 12.000 \\
+combined\_shift & No future debt & 192 & 0.776 & 0.302 & 0.071 & 12.000 \\
+combined\_shift & No hand-switch cost & 192 & 0.781 & 0.303 & 0.071 & 12.000 \\
+combined\_shift & No recovery cost & 192 & 0.776 & 0.302 & 0.071 & 12.000 \\
+combined\_shift & No tail debt & 192 & 0.776 & 0.302 & 0.071 & 12.000 \\
+combined\_shift & No torque comfort & 192 & 0.776 & 0.302 & 0.071 & 12.000 \\
+combined\_shift & Small future sample & 192 & 0.781 & 0.302 & 0.071 & 12.000 \\
+opposite\_side\_sequence & Robust balance & 192 & 0.146 & 0.516 & 0.112 & 3.000 \\
+opposite\_side\_sequence & Current-only & 192 & 0.135 & 0.519 & 0.112 & 3.000 \\
+opposite\_side\_sequence & BAR-MPC & 192 & 0.146 & 0.516 & 0.111 & 3.000 \\
+opposite\_side\_sequence & BAR no-online & 192 & 0.146 & 0.516 & 0.111 & 3.000 \\
+opposite\_side\_sequence & Oracle & 192 & 0.167 & 0.512 & 0.110 & 9.000 \\
+opposite\_side\_sequence & Mean future only & 192 & 0.146 & 0.516 & 0.112 & 3.000 \\
+opposite\_side\_sequence & No balance margin & 192 & 0.141 & 0.517 & 0.112 & 3.000 \\
+opposite\_side\_sequence & No future debt & 192 & 0.146 & 0.517 & 0.112 & 3.000 \\
+opposite\_side\_sequence & No hand-switch cost & 192 & 0.146 & 0.516 & 0.111 & 3.000 \\
+opposite\_side\_sequence & No recovery cost & 192 & 0.146 & 0.517 & 0.112 & 3.000 \\
+opposite\_side\_sequence & No tail debt & 192 & 0.146 & 0.516 & 0.112 & 3.000 \\
+opposite\_side\_sequence & No torque comfort & 192 & 0.146 & 0.517 & 0.112 & 3.000 \\
+opposite\_side\_sequence & Small future sample & 192 & 0.146 & 0.516 & 0.111 & 3.000 \\
+\bottomrule
+\end{tabular}
+\end{table}

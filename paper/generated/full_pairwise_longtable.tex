@@ -1,0 +1,112 @@
+\begin{longtable}{llrrrrr}
+\caption{Complete paired BAR-MPC comparison table.}\label{tab:full-pairwise}\\
+\toprule
+Split & Baseline & Pairs & $\Delta$ succ. & Energy impr. & $\Delta$ margin & Diff. \\
+\midrule
+\endfirsthead
+\toprule
+Split & Baseline & Pairs & $\Delta$ succ. & Energy impr. & $\Delta$ margin & Diff. \\
+\midrule
+\endhead
+combined\_shift & Random & 192 & 0.193 & 0.105 & -0.003 & 92.7\% \\
+combined\_shift & Arm only & 192 & 0.083 & 0.025 & -0.009 & 99.0\% \\
+combined\_shift & Greedy reach & 192 & 0.000 & 0.000 & 0.002 & 21.3\% \\
+combined\_shift & Comfort MPC & 192 & 0.000 & 0.000 & 0.001 & 14.1\% \\
+combined\_shift & Robust balance & 192 & 0.005 & -0.000 & 0.001 & 5.7\% \\
+combined\_shift & Current-only & 192 & 0.000 & 0.000 & 0.002 & 21.3\% \\
+combined\_shift & Future dist. & 192 & 0.000 & 0.000 & 0.001 & 10.4\% \\
+combined\_shift & Linear debt & 192 & 0.000 & -0.000 & -0.002 & 28.6\% \\
+combined\_shift & BAR no-online & 192 & 0.000 & 0.000 & 0.000 & 0.0\% \\
+combined\_shift & Oracle & 192 & -0.031 & -0.008 & 0.007 & 50.5\% \\
+high\_lateral\_payload & Random & 192 & 0.036 & 0.095 & -0.014 & 95.3\% \\
+high\_lateral\_payload & Arm only & 192 & 0.031 & 0.011 & -0.025 & 100.0\% \\
+high\_lateral\_payload & Greedy reach & 192 & 0.000 & 0.003 & 0.006 & 27.1\% \\
+high\_lateral\_payload & Comfort MPC & 192 & 0.000 & 0.002 & 0.005 & 22.4\% \\
+high\_lateral\_payload & Robust balance & 192 & 0.000 & -0.000 & -0.002 & 8.8\% \\
+high\_lateral\_payload & Current-only & 192 & 0.000 & 0.003 & 0.006 & 27.1\% \\
+high\_lateral\_payload & Future dist. & 192 & 0.000 & 0.002 & 0.005 & 24.0\% \\
+high\_lateral\_payload & Linear debt & 192 & -0.005 & 0.000 & 0.001 & 8.8\% \\
+high\_lateral\_payload & BAR no-online & 192 & 0.000 & 0.000 & 0.000 & 0.0\% \\
+high\_lateral\_payload & Oracle & 192 & -0.005 & -0.003 & -0.004 & 45.8\% \\
+high\_reach & Random & 192 & 0.297 & 0.118 & 0.007 & 95.8\% \\
+high\_reach & Arm only & 192 & 0.026 & 0.034 & 0.001 & 95.8\% \\
+high\_reach & Greedy reach & 192 & 0.000 & 0.000 & 0.001 & 19.8\% \\
+high\_reach & Comfort MPC & 192 & 0.000 & -0.000 & 0.000 & 8.3\% \\
+high\_reach & Robust balance & 192 & 0.000 & -0.000 & 0.000 & 8.8\% \\
+high\_reach & Current-only & 192 & 0.000 & 0.000 & 0.001 & 19.8\% \\
+high\_reach & Future dist. & 192 & 0.000 & -0.000 & -0.000 & 2.6\% \\
+high\_reach & Linear debt & 192 & 0.000 & 0.001 & -0.001 & 13.0\% \\
+high\_reach & BAR no-online & 192 & 0.000 & 0.000 & 0.000 & 0.0\% \\
+high\_reach & Oracle & 192 & 0.000 & -0.003 & 0.003 & 29.2\% \\
+lateral\_reach & Random & 192 & 0.167 & 0.096 & 0.006 & 95.3\% \\
+lateral\_reach & Arm only & 192 & 0.094 & 0.030 & 0.001 & 94.8\% \\
+lateral\_reach & Greedy reach & 192 & -0.005 & 0.000 & 0.001 & 20.3\% \\
+lateral\_reach & Comfort MPC & 192 & -0.005 & 0.000 & 0.001 & 13.0\% \\
+lateral\_reach & Robust balance & 192 & -0.005 & 0.000 & 0.000 & 13.5\% \\
+lateral\_reach & Current-only & 192 & -0.005 & 0.000 & 0.001 & 20.3\% \\
+lateral\_reach & Future dist. & 192 & 0.000 & 0.000 & 0.000 & 0.0\% \\
+lateral\_reach & Linear debt & 192 & 0.000 & 0.002 & 0.000 & 26.6\% \\
+lateral\_reach & BAR no-online & 192 & 0.000 & 0.000 & 0.000 & 0.0\% \\
+lateral\_reach & Oracle & 192 & -0.016 & -0.003 & 0.005 & 35.9\% \\
+narrow\_support & Random & 192 & 0.167 & 0.075 & -0.000 & 93.8\% \\
+narrow\_support & Arm only & 192 & 0.068 & 0.021 & -0.004 & 93.8\% \\
+narrow\_support & Greedy reach & 192 & -0.005 & 0.000 & -0.000 & 20.3\% \\
+narrow\_support & Comfort MPC & 192 & 0.000 & -0.000 & 0.000 & 9.4\% \\
+narrow\_support & Robust balance & 192 & 0.000 & -0.000 & -0.000 & 10.4\% \\
+narrow\_support & Current-only & 192 & -0.005 & 0.000 & -0.000 & 20.3\% \\
+narrow\_support & Future dist. & 192 & 0.000 & 0.000 & -0.000 & 2.1\% \\
+narrow\_support & Linear debt & 192 & 0.005 & 0.001 & -0.001 & 26.0\% \\
+narrow\_support & BAR no-online & 192 & 0.000 & 0.000 & 0.000 & 0.0\% \\
+narrow\_support & Oracle & 192 & 0.000 & -0.002 & 0.003 & 30.7\% \\
+nominal & Random & 192 & 0.286 & 0.091 & 0.008 & 94.8\% \\
+nominal & Arm only & 192 & 0.099 & 0.024 & 0.004 & 93.2\% \\
+nominal & Greedy reach & 192 & -0.005 & 0.000 & 0.001 & 24.5\% \\
+nominal & Comfort MPC & 192 & 0.000 & -0.000 & 0.000 & 8.8\% \\
+nominal & Robust balance & 192 & 0.000 & -0.000 & 0.000 & 9.9\% \\
+nominal & Current-only & 192 & -0.005 & 0.000 & 0.001 & 24.5\% \\
+nominal & Future dist. & 192 & 0.000 & -0.000 & -0.000 & 0.5\% \\
+nominal & Linear debt & 192 & 0.010 & 0.002 & 0.001 & 34.9\% \\
+nominal & BAR no-online & 192 & 0.000 & 0.000 & 0.000 & 0.0\% \\
+nominal & Oracle & 192 & -0.005 & -0.001 & 0.002 & 29.2\% \\
+opposite\_side\_sequence & Random & 192 & 0.026 & 0.110 & -0.004 & 91.1\% \\
+opposite\_side\_sequence & Arm only & 192 & -0.031 & 0.011 & -0.015 & 100.0\% \\
+opposite\_side\_sequence & Greedy reach & 192 & 0.010 & 0.003 & 0.005 & 20.8\% \\
+opposite\_side\_sequence & Comfort MPC & 192 & 0.005 & 0.002 & 0.004 & 17.2\% \\
+opposite\_side\_sequence & Robust balance & 192 & 0.000 & 0.000 & 0.000 & 4.2\% \\
+opposite\_side\_sequence & Current-only & 192 & 0.010 & 0.003 & 0.005 & 20.8\% \\
+opposite\_side\_sequence & Future dist. & 192 & 0.005 & 0.002 & 0.003 & 12.5\% \\
+opposite\_side\_sequence & Linear debt & 192 & -0.005 & -0.001 & -0.001 & 6.2\% \\
+opposite\_side\_sequence & BAR no-online & 192 & 0.000 & 0.000 & 0.000 & 0.0\% \\
+opposite\_side\_sequence & Oracle & 192 & -0.021 & -0.004 & -0.007 & 52.6\% \\
+payload\_shift & Random & 192 & 0.182 & 0.089 & 0.005 & 92.7\% \\
+payload\_shift & Arm only & 192 & 0.052 & 0.019 & 0.002 & 89.1\% \\
+payload\_shift & Greedy reach & 192 & 0.000 & 0.001 & 0.001 & 24.5\% \\
+payload\_shift & Comfort MPC & 192 & 0.000 & -0.000 & 0.001 & 9.9\% \\
+payload\_shift & Robust balance & 192 & 0.005 & 0.000 & 0.001 & 10.9\% \\
+payload\_shift & Current-only & 192 & 0.000 & 0.001 & 0.001 & 24.5\% \\
+payload\_shift & Future dist. & 192 & 0.000 & 0.000 & 0.000 & 1.0\% \\
+payload\_shift & Linear debt & 192 & 0.005 & 0.001 & -0.000 & 29.7\% \\
+payload\_shift & BAR no-online & 192 & 0.000 & 0.000 & 0.000 & 0.0\% \\
+payload\_shift & Oracle & 192 & -0.005 & -0.003 & 0.002 & 41.7\% \\
+support\_reversal & Random & 192 & 0.031 & 0.119 & 0.001 & 94.3\% \\
+support\_reversal & Arm only & 192 & -0.021 & 0.026 & -0.007 & 100.0\% \\
+support\_reversal & Greedy reach & 192 & 0.010 & 0.004 & 0.009 & 50.5\% \\
+support\_reversal & Comfort MPC & 192 & 0.010 & 0.003 & 0.007 & 45.3\% \\
+support\_reversal & Robust balance & 192 & 0.000 & -0.000 & -0.001 & 9.9\% \\
+support\_reversal & Current-only & 192 & 0.010 & 0.004 & 0.009 & 50.5\% \\
+support\_reversal & Future dist. & 192 & 0.010 & 0.002 & 0.007 & 43.2\% \\
+support\_reversal & Linear debt & 192 & 0.005 & 0.001 & 0.002 & 22.9\% \\
+support\_reversal & BAR no-online & 192 & 0.000 & 0.000 & 0.000 & 0.0\% \\
+support\_reversal & Oracle & 192 & -0.010 & -0.005 & 0.006 & 57.8\% \\
+weak\_actuation & Random & 192 & 0.193 & 0.076 & 0.009 & 93.8\% \\
+weak\_actuation & Arm only & 192 & 0.052 & 0.016 & 0.003 & 94.8\% \\
+weak\_actuation & Greedy reach & 192 & -0.010 & 0.000 & 0.000 & 16.2\% \\
+weak\_actuation & Comfort MPC & 192 & -0.010 & -0.000 & 0.000 & 10.9\% \\
+weak\_actuation & Robust balance & 192 & -0.010 & -0.000 & 0.000 & 12.0\% \\
+weak\_actuation & Current-only & 192 & -0.010 & 0.000 & 0.000 & 16.2\% \\
+weak\_actuation & Future dist. & 192 & 0.000 & 0.000 & 0.000 & 1.6\% \\
+weak\_actuation & Linear debt & 192 & 0.010 & 0.002 & 0.001 & 33.9\% \\
+weak\_actuation & BAR no-online & 192 & 0.000 & 0.000 & 0.000 & 0.0\% \\
+weak\_actuation & Oracle & 192 & 0.005 & -0.004 & 0.001 & 43.2\% \\
+\bottomrule
+\end{longtable}

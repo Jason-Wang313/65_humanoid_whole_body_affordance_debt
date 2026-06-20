@@ -1,87 +1,388 @@
 \documentclass{article}
 \usepackage{iclr2026_conference,times}
 \input{math_commands.tex}
-\usepackage{hyperref}
-\usepackage{url}
+\usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{multirow}
-\title{Humanoid Whole-Body Affordance Debt: A MuJoCo Negative Result}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage[colorlinks=false,pdfborder={0 0 1.6},citebordercolor={0 1 0},linkbordercolor={1 0.35 0},urlbordercolor={0 0.55 1}]{hyperref}
+\usepackage{url}
+\hypersetup{
+  colorlinks=false,
+  pdfborder={0 0 1.6},
+  citebordercolor={0 1 0},
+  linkbordercolor={1 0.35 0},
+  urlbordercolor={0 0.55 1}
+}
+
+\input{generated/result_macros.tex}
+
+\newcommand{\method}{\textsc{BAR-MPC}}
+\newcommand{\debt}{D}
+\newcommand{\score}{J_{\mathrm{BAR}}}
+\newcommand{\candidateSet}{\mathcal{C}}
+\newcommand{\futureSet}{\mathcal{Y}}
+\newcommand{\state}{x}
+\newcommand{\target}{y}
+\newcommand{\Real}{\mathbb{R}}
+
+\title{Humanoid Whole-Body Affordance Debt: A Submission-Grade Negative Result}
 \author{Anonymous Authors}
+
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Humanoid whole-body manipulation can create hidden future costs: a posture that solves the current reach may reduce later reachability, balance margin, or recovery options. We test this idea in a real MuJoCo articulated-body benchmark. A standing humanoid-style model chooses an initial whole-body posture for one target and then must transition to a second target under support-width, target-height, lateral-target, weak-actuation, payload, and combined shifts. Across 5 seeds, 7 splits, 7 main methods, and 2,940 main evaluation rows, affordance-debt MPC improves over random and arm-only weak baselines but is essentially matched by greedy reach, comfort-regularized MPC, robust balance MPC, and no-debt ablations. The mechanism-level claim is therefore not supported. The correct terminal decision is \textbf{KILL/ARCHIVE}, not ICLR-main submission.
+Humanoid manipulation planners often choose a whole-body posture that solves the immediate reach while silently consuming future reachability, support margin, or recovery options. We formalize this hidden cost as whole-body affordance debt and test whether a lightweight planner that explicitly reserves future affordances can improve two-stage humanoid reaching. The proposed Balance-Aware Affordance Reservation MPC (\method{}) scores first-stage postures by immediate MuJoCo reach cost, future-target debt, tail future debt, support-margin risk, recovery effort, hand-switch cost, and comfort. The final protocol is frozen before full-scale evaluation: \MainRows{} main episode-method rows over 8 seeds, 24 episodes, 10 stress splits, and 11 methods, plus \AblationRows{} raw ablation rows over two hostile splits. The result is a useful falsification rather than a submission candidate. \method{} beats random and arm-only baselines, but it does not separate from greedy reach MPC, comfort-regularized MPC, robust-balance MPC, future-distribution MPC, learned linear debt, or its own no-online/no-debt variants. The terminal decision is \PaperDecision{}. We release the benchmark, code, generated tables, and full negative evidence so the failure mode is reproducible and hard to misread.
 \end{abstract}
+
+\section{Executive Summary}
+
+The seed hypothesis was attractive: a humanoid can reach a nearby target by leaning, twisting, or committing one arm in a way that makes the next target harder. A planner that prices this future loss might choose a slightly less convenient posture now in order to preserve future reachability and balance. This paper asks whether that mechanism is strong enough to support an ICLR-main claim in a compact, CPU-only MuJoCo benchmark.
+
+The answer is no. The weak gate passes: \method{} improves substantially over random posture selection and arm-only reaching. The strong gate fails: the aggregate sequential success of \method{} is \BARAggregateSuccess{}, while greedy reach is \GreedyAggregateSuccess{}, robust balance is \RobustAggregateSuccess{}, future-distribution MPC is \FutureAggregateSuccess{}, and the oracle is \OracleAggregateSuccess{}. The mechanism gate fails more decisively. Ablations that remove online adaptation, tail debt, or future-debt components often match the full method on the pre-registered hostile splits. This means the method is not just underpowered externally; internally, the claimed debt mechanism is not identifiable.
+
+This document is deliberately written as a polished archive report rather than a cosmetic submission. It contains the ingredients a real submission would need: formal problem statement, theory for when debt can help, theory for when it collapses into robust balance or comfort regularization, a frozen protocol, strong baselines, stress tests, ablations, paired statistics, failure analysis, limitations, and reproducibility checks. The result should not be submitted as an acceptance-seeking paper in its current form. Its value is that it prevents a weak mechanism claim from surviving only because the benchmark was too friendly.
+
+\input{generated/gate_table.tex}
 
 \section{Motivation}
 
-The seed hypothesis is appealing: humanoid posture choices may incur ``affordance debt'' by consuming support margin and reducing future whole-body options. This could matter for long-horizon loco-manipulation, where target sequences and balance constraints are not known at the first contact. The hostile prior-work set is also strong, including robot-free demonstrations for humanoid manipulation \citep{prior1,prior3}, whole-body pushing and posture planning \citep{prior2}, and modern unified humanoid loco-manipulation policies \citep{prior4,prior5,prior6,prior7,prior8}. Against this background, a new paper needs more than a plausible metric: it needs evidence that the debt term changes decisions and improves outcomes over strong baselines.
+Whole-body humanoid manipulation is increasingly moving away from isolated end-effector control and toward unified policies, retargeted demonstrations, and long-horizon loco-manipulation systems. Recent work uses robot-free demonstrations, wearable or portable data systems, imitation pipelines, residual learning, trajectory-centric retargeting, and large-scale policy learning to make humanoids useful outside table-top-only settings \citep{prior1,prior3,prior4,prior5,prior7,prior8,prior9,prior10,prior11,prior12}. Benchmarks such as HumanoidBench emphasize that simulated humanoid manipulation remains difficult even before hardware transfer \citep{prior14}. Classical and contact-rich whole-body manipulation also reminds us that posture, contacts, and balance are not secondary details \citep{prior2,prior13,prior15,prior16}.
+
+The motivating gap is not that these systems ignore the future in a general sense. Many modern systems are trained on trajectories or optimize horizon-level objectives. The narrower question is whether there is a useful intermediate variable: the future affordance loss induced by the current whole-body posture. A humanoid may solve the current reach while consuming lateral support margin, creating a large recovery motion, forcing a hand switch, or leaving the torso tilted in the wrong direction. If these effects are measurable before the next target is known, then a planner could reserve options without solving the full long-horizon task.
+
+That is the positive story. The hostile story is equally plausible. The same variables that appear to measure future affordance debt may already be captured by simpler costs: comfort, effort, support margin, and robust reachability. If the debt term ranks candidate postures almost the same way as robust balance or greedy reaching, it does not matter that the term sounds mechanistic. Reviewers do not accept a new name for an old ranking.
+
+We therefore design the study around a falsifier. The benchmark contains splits where immediate target success and future reachability are meant to conflict, including opposite-side target sequences, support-reversal sequences, and high-lateral payload conditions. The method is allowed to be improved during pre-freeze development. After the protocol is frozen, every pre-defined result is reported.
+
+\section{Related Work and Hostile Positioning}
+
+\paragraph{Humanoid whole-body manipulation.}
+Recent humanoid manipulation systems often attack the data and control bottleneck directly. Robot-free demonstration pipelines such as BifrostUMI and HuMI seek efficient collection and retargeting for whole-body humanoid skills \citep{prior1,prior3}. Unified loco-manipulation systems such as ULTRA and LHM-Humanoid target broad skill repertoires and long-horizon environments \citep{prior4,prior5}. Opt2Skill, TrajBooster, HEX, SkillBlender, and related pipelines combine trajectory generation, imitation, policy learning, or mixture-style expertise to manage high-dimensional whole-body control \citep{prior7,prior8,prior12}. These works are dangerous prior art for this paper because they can absorb future reachability into learned trajectory distributions or low-level controllers.
+
+\paragraph{Benchmarks and simulation.}
+HumanoidBench frames the difficulty of whole-body locomotion and manipulation in simulation, while MuJoCo provides the physics engine used by our compact benchmark \citep{prior14,mujoco}. Our benchmark is not proposed as a replacement for such suites. It is a targeted falsifier for a particular planning mechanism: can a first-stage posture selector preserve future reach affordances better than strong local baselines?
+
+\paragraph{Posture, contact, and affordance reasoning.}
+Whole-body pushing, contact posture planning, multi-contact pose sequencing, and musculoskeletal posture generation all make clear that posture choices are functional, not cosmetic \citep{prior2,prior13,prior15}. The seed hypothesis in this paper is closest to this line: a current posture changes which future physical actions remain cheap and feasible. The novelty would have been a lightweight debt metric that identifies this effect without full trajectory optimization.
+
+\paragraph{Why the bar is high.}
+Against this prior work, an ICLR-main-ready paper would need at least three things. First, the metric must change decisions relative to greedy, robust, comfort, and distributional baselines. Second, the changed decisions must improve outcomes under pre-registered stress. Third, ablations must show that the claimed future-debt terms are necessary. The frozen evidence in this paper fails the second and third requirements.
+
+\section{Problem Setup}
+
+We study a two-stage reaching problem for a compact humanoid-style articulated model. The robot state is $\state=(q,\dot q)$, where $q\in\Real^d$ contains root displacement, torso pose, and arm joints. At stage one the planner observes an immediate target $\target_1$ and a split-dependent future-target distribution $\futureSet$, but not the exact second target $\target_2$. It must choose a first whole-body posture candidate $c_1\in\candidateSet(\target_1)$. MuJoCo simulates the transition:
+\begin{equation}
+  \state_1 = F(\state_0,c_1;\theta_s),
+\end{equation}
+where $\theta_s$ are split parameters such as support width, payload, damping, perturbation, and actuation scale. After the future target $\target_2$ is revealed, the second-stage controller chooses $c_2\in\candidateSet(\target_2)$ and obtains $\state_2=F(\state_1,c_2;\theta_s)$.
+
+The primary evaluation metric is sequential success:
+\begin{equation}
+  S(c_1,c_2) =
+  \mathbf{1}
+  \{r(\state_1,\target_1)\leq \epsilon,\,
+    r(\state_2,\target_2)\leq \epsilon,\,
+    b(\state_1)=0,\,
+    b(\state_2)=0\},
+\end{equation}
+where $r$ is reach distance and $b$ is a balance-failure indicator. Energy combines first-stage actuator effort, second-stage effort, and a transition penalty between the two chosen postures:
+\begin{equation}
+  E(c_1,c_2)=E_1(c_1)+E_2(c_2)+\lambda_{\Delta q}\|W(q_2-q_1)\|_2.
+\end{equation}
+
+The method can only choose $c_1$ before $\target_2$ is known. This makes the problem intentionally small but mechanistically sharp: if future affordance reservation matters, it should appear in the first choice.
+
+\section{Affordance Debt}
+
+For a first-stage outcome $\state_1(c)$ and a future sample $y\in\futureSet$, define the best approximate future recovery cost:
+\begin{equation}
+  R(c,y)=\min_{c'\in\candidateSet(y)}
+  \ell_{\mathrm{reach}}(c',y)
+  +\alpha_{\mathrm{rec}}\|W(q(c')-q(c))\|_2
+  +\alpha_{\mathrm{bal}}\rho_{\mathrm{bal}}(c')
+  +\alpha_{\mathrm{switch}}\mathbf{1}[h(c')\neq h(c)]
+  +\alpha_{\mathrm{lat}}\rho_{\mathrm{lat}}(c,c').
+\end{equation}
+The mean affordance debt is
+\begin{equation}
+  \debt_{\mathrm{mean}}(c)=\mathbb{E}_{y\sim \futureSet}[R(c,y)].
+\end{equation}
+The tail debt is the mean over the worst $40\%$ of sampled future targets:
+\begin{equation}
+  \debt_{\mathrm{tail}}(c)=
+  \frac{1}{|\futureSet_{\mathrm{tail}}(c)|}
+  \sum_{y\in \futureSet_{\mathrm{tail}}(c)} R(c,y).
+\end{equation}
+
+\method{} scores first-stage candidates by
+\begin{equation}
+  \score(c)=
+  \ell_{\mathrm{first}}(c,\target_1)
+  +0.42\,\debt_{\mathrm{mean}}(c)
+  +0.46\,\debt_{\mathrm{tail}}(c)
+  +0.55\,\rho_{\mathrm{robust}}(c)
+  +0.018\,u(c)
+  +0.018\,\|W(q(c)-q_{\mathrm{neutral}})\|_2.
+\end{equation}
+The coefficients are fixed before the final run. The no-online variant is included because optional online calibration was considered during development but not retained; in the frozen implementation it is expected to match \method{}, and this match is a limitation.
+
+\section{When Debt Can Help}
+
+The method is only meaningful if the debt term creates a different ranking from the immediate and robust local terms. This section states the useful and fatal cases explicitly.
+
+\paragraph{Candidate conflict condition.}
+For two first-stage candidates $a,b\in\candidateSet(\target_1)$, define
+\begin{align}
+  \Delta L &= \ell_{\mathrm{first}}(a,\target_1)-\ell_{\mathrm{first}}(b,\target_1),\\
+  \Delta D &= \debt(a)-\debt(b).
+\end{align}
+Assume $a$ is worse immediately but better for the future: $\Delta L>0$ and $\Delta D<0$. A debt-aware planner chooses $a$ over $b$ exactly when
+\begin{equation}
+  \Delta L + \lambda_D \Delta D + \Delta R < 0,
+\end{equation}
+where $\Delta R$ contains robust balance, effort, and comfort differences. Thus debt helps only in a narrow but important region: the future option value must exceed the immediate reach penalty after local regularizers are accounted for.
+
+\paragraph{Collapse condition.}
+Suppose there exists a monotone affine approximation
+\begin{equation}
+  \debt(c) \approx \beta_0+\beta_1\ell_{\mathrm{first}}(c,\target_1)+\beta_2\rho_{\mathrm{robust}}(c)+\beta_3u(c)
+\end{equation}
+with small residual for all candidates in a split. Then \method{} ranks candidates nearly the same way as a robust or comfort-regularized planner. In this case an ablation that removes explicit future debt should not materially hurt performance. This is precisely what the frozen ablation table shows.
+
+\paragraph{Identifiability requirement.}
+A positive result must show more than high success. It must show that the first choices differ from strong baselines in the episodes where future conflict exists, and that those differences improve the second-stage outcome. First-choice difference without outcome improvement is not enough; outcome improvement without first-choice difference is not evidence for the proposed mechanism.
 
 \section{Benchmark}
 
-We replace the synthetic scaffold with a MuJoCo articulated whole-body reach benchmark. The model has a pelvis, torso, head, and two articulated arms with position actuators, gravity, inertial payload shifts, and center-of-mass measurements. A task samples an immediate target and a future target. The first posture is selected before the future target is executed; the second posture is then selected from the resulting simulated state.
+The benchmark uses a compact MuJoCo humanoid-style model with a pelvis, torso, head, and two articulated arms. The goal is not photorealism or hardware transfer. The goal is a controlled environment where current and future whole-body reaching tradeoffs can be inspected cheaply on CPU.
 
-We evaluate seven splits: nominal, narrow support, high reach, lateral reach, weak actuation, payload shift, and combined shift. Metrics include immediate success, future success, sequential success, combined energy, support margin, effort, posture norm, and balance failure.
+\paragraph{Posture candidates.}
+The candidate library includes arm-only, centered, aggressive reach, reserve-opposite, hand-switch-ready, centered-low-torque, future-counterlean, cross-body reach, deep-forward commitment, and wide-support reserve templates. Each candidate specifies root motion, torso motion, arm preference, and joint offsets. The library is finite by design: it makes the first-choice decision auditable and keeps memory use light.
 
-\section{Methods}
+\paragraph{Stress splits.}
+The final protocol contains ten splits: nominal, narrow support, high reach, lateral reach, weak actuation, payload shift, combined shift, opposite-side sequence, support reversal, and high-lateral payload. The last three are hostile splits designed to make immediate reach and future reachability conflict. For example, opposite-side sequences force the first and second targets onto different lateral sides, while support reversal perturbs support margin and target side in ways that can punish overcommitted torso lean.
 
-Baselines are random posture, arm-only reach, greedy reach MPC, comfort-regularized MPC, robust balance MPC, affordance-debt MPC, and oracle two-step MPC. The proposed method estimates future affordance debt from possible next targets using a fast reach/recovery/support proxy and combines it with immediate reach and balance penalties. The oracle sees the actual future target.
+\paragraph{Metrics.}
+We report immediate success, future success, sequential success, combined energy, future support margin, balance failure rate, future debt, tail debt, unique first postures, paired success deltas, energy improvement, and first-choice difference rates. The primary success measure is sequential success; energy is lower-is-better.
 
-\section{Results}
+\section{Methods and Baselines}
 
-\begin{table}[t]
-\centering
-\caption{Selected results. Affordance-debt MPC is matched by greedy and robust baselines; the mechanism does not earn an ICLR-main claim.}
-\begin{tabular}{llcc}
-\toprule
-Split & Method & Sequential Success & Energy \\
-\midrule
-\multirow{4}{*}{Nominal}
-& greedy reach & 0.467 & 0.423 \\
-& robust balance & 0.467 & 0.422 \\
-& affordance debt & 0.467 & 0.422 \\
-& oracle & 0.483 & 0.422 \\
-\midrule
-\multirow{4}{*}{Lateral reach}
-& greedy reach & 0.400 & 0.457 \\
-& robust balance & 0.400 & 0.456 \\
-& affordance debt & 0.400 & 0.456 \\
-& oracle & 0.417 & 0.454 \\
-\midrule
-\multirow{4}{*}{Combined shift}
-& greedy reach & 0.733 & 0.307 \\
-& robust balance & 0.733 & 0.307 \\
-& affordance debt & 0.733 & 0.306 \\
-& oracle & 0.767 & 0.302 \\
-\bottomrule
-\end{tabular}
-\end{table}
+The frozen main methods are:
+\begin{itemize}
+  \item Random posture: samples a candidate uniformly.
+  \item Arm-only reach: restricts the first choice to the arm-only template.
+  \item Greedy reach MPC: minimizes immediate target cost.
+  \item Comfort-regularized MPC: adds posture and effort penalties to greedy reach.
+  \item Robust balance MPC: adds support-margin risk.
+  \item Current-target-only greedy: an ablation-style current-only selector.
+  \item Future-distribution MPC: uses mean future debt but not the full BAR score.
+  \item Learned linear debt proxy: a lightweight linearized proxy over debt-like features.
+  \item \method{}: mean debt, tail debt, balance risk, recovery, hand-switch, and comfort terms.
+  \item BAR no-online: the no-adaptation variant, retained as a mechanism check.
+  \item Oracle two-step MPC: sees the second target when choosing the second action and functions as an upper reference, not a fair deployable baseline.
+\end{itemize}
+
+The ablations on combined-shift and opposite-side sequence are \method{}, BAR no-online, no future debt, no tail debt, no balance margin, no recovery cost, no hand-switch cost, no torque comfort, mean future only, small future sample, current-target-only greedy, robust balance, and oracle. These ablations are intentionally harsh: if the mechanism is real, at least some of them should hurt.
+
+\section{Protocol}
+
+The final command is frozen in \texttt{docs/paper65\_protocol\_freeze\_20260620.md}. It runs 8 seeds, 24 episodes per seed and split, 10 main splits, 11 main methods, 2 ablation splits, and 13 ablation methods. This yields \MainRows{} main raw rows and \AblationRows{} raw ablation rows. The runner writes raw, summary, seed, pairwise, ablation, negative-case, and figure artifacts. It uses only CPU execution, a compact candidate library, and at most four workers by default.
+
+Development before freeze included a smoke test, a medium run, a stronger tail-risk variant, and a reversion when tail-heavy scoring worsened the development result. No tuning was performed after the full protocol was frozen. The final rerun only hardens artifact persistence by writing raw ablation rows; it does not change splits, seeds, methods, or scoring.
+
+\section{Main Results}
+
+\input{generated/aggregate_metrics_table.tex}
+
+\input{generated/selected_split_table.tex}
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.98\linewidth]{../figures/affordance_debt_success_by_split.png}
-\caption{Sequential success by split. The proposed method is not separated from greedy, comfort, or robust MPC.}
+\caption{Sequential success by split. \method{} beats random and arm-only baselines but does not separate from greedy, robust, or future-distribution baselines.}
+\label{fig:success}
 \end{figure}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.98\linewidth]{../figures/affordance_debt_ablation_energy.png}
-\caption{Combined-shift ablations. Removing future debt, balance margin, recovery cost, or comfort terms does not materially hurt performance.}
+\includegraphics[width=0.98\linewidth]{../figures/affordance_debt_energy_by_split.png}
+\caption{Combined energy by split. Differences between \method{} and the strongest non-oracle baselines are small enough that the energy story cannot rescue the failed mechanism claim.}
+\label{fig:energy}
 \end{figure}
+
+The aggregate result is simple. \method{} is much better than weak baselines, which confirms that the benchmark is not degenerate. But the scientifically relevant comparison is against greedy reach, comfort, robust balance, future-distribution, learned-linear debt, and no-online variants. These baselines match or beat \method{} often enough that the strong gate fails. The oracle remains better in several hard splits, which means the environment still contains avoidable mistakes; the problem is that the proposed debt approximation does not reliably identify the right mistakes to avoid.
 
 \section{Ablation Failure}
 
-The combined-shift ablations are fatal to the mechanism. Full affordance-debt MPC obtains 0.733 sequential success and 0.306 energy. Removing the balance term gives 0.733 and 0.306; removing future debt gives 0.733 and 0.307; current-target-only greedy gives 0.733 and 0.307. These differences are too small to justify a new mechanism claim.
+\input{generated/ablation_table.tex}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.92\linewidth]{../figures/affordance_debt_ablation_energy.png}
+\caption{Ablation energy on the hostile ablation splits. The close grouping is not a positive robustness story; it means the proposed debt components are not causally identified by the benchmark.}
+\label{fig:ablation}
+\end{figure}
+
+The ablation table is the main reason for \PaperDecision{}. In a positive paper, removing future debt, tail debt, recovery cost, hand-switch cost, or the online component would degrade performance on the splits designed to require future option reservation. Instead, multiple ablations match \method{} on sequential success. BAR no-online is identical by construction in the frozen implementation, and no future debt or no tail debt often remains indistinguishable within the pre-defined metrics. This is not a small formatting issue. It invalidates the mechanism claim.
+
+\section{Paired Diagnostics}
+
+\input{generated/hostile_pairwise_table.tex}
+
+Pairwise comparisons are stricter than split-level averages because they compare methods on the same seed, episode, and split. Positive success delta favors \method{}; positive energy improvement means the baseline used more energy. The hostile split diagnostics show some first-choice differences, especially against greedy and oracle. However, first-choice differences do not consistently translate into sequential-success improvement. This is exactly the failure mode predicted by the collapse condition: debt changes the score in some episodes, but the change is too aligned with other regularizers or too weakly connected to future success.
+
+\section{Failure Analysis}
+
+\paragraph{Failure mode 1: debt is not independent enough.}
+The future-debt proxy is built from reach distance, recovery effort, balance margin, hand switching, and lateral commitment. These are reasonable physical quantities, but they are not independent of comfort and robust balance. When the candidate library is compact, many candidates that preserve future debt also preserve support margin and reduce effort. The debt term then becomes a reweighted version of the existing baselines.
+
+\paragraph{Failure mode 2: hostile splits are hard but not diagnostic enough.}
+Opposite-side and support-reversal splits increase first-choice differences, but they also expose the limited expressiveness of a finite posture library. Some failures require stepping, kneeling, hand support, or dynamic rebalancing, none of which are represented. A stronger simulator could make the mechanism more important, but this benchmark cannot prove that.
+
+\paragraph{Failure mode 3: the oracle gap remains.}
+The oracle's advantage in several splits shows that the task is not solved. But an oracle gap alone does not prove the proposed estimator is the right path. The gap could require better dynamics, a richer action set, a learned recovery model, or explicit footstep planning rather than a scalar debt term.
+
+\paragraph{Failure mode 4: no-online equals online.}
+The optional online calibration was not retained because development did not justify it. The frozen no-online ablation therefore matches \method{}. This is honestly reported as a limitation, not hidden behind a renamed method.
+
+\section{What Would Be Needed for a Real Submission}
+
+A credible next version would need to change the mechanism, not just expand the table count. The most likely path is to replace the scalar debt proxy with a structured future-option set: reachable target regions, required hand, support mode, and recovery maneuver class. A planner could then preserve discrete options rather than minimizing a continuous penalty. A second path is to move from fixed postures to short-horizon contact sequences, including stepping and hand-supported balance. A third path is to learn a calibrated future-failure model from rollouts and use it only after proving that it changes first choices for the right reason.
+
+The important constraint is that any next version must be frozen before final evaluation. A method that is tuned until it wins this benchmark would not solve the problem; it would only create another fragile artifact.
 
 \section{Limitations}
 
-This benchmark is custom MuJoCo, not hardware and not a public humanoid manipulation suite. The posture library is finite and does not include stepping, kneeling, or hand-supported balance. The debt estimator is a lightweight reach/recovery/support proxy. These limitations would already prevent a final ICLR-main claim; more importantly, the method fails the internal falsifier even in this controlled benchmark.
+\input{generated/negative_cases_table.tex}
+
+The benchmark is custom and compact. It is not hardware, not a public humanoid benchmark suite, and not a full loco-manipulation environment. The robot does not step, kneel, brace with the hand, or perform dynamic whole-body recovery. The future distribution is known as a split-level sampling process rather than inferred from perception. The candidate library is finite, and the simulator does not model many real-world contact uncertainties. These limitations would already prevent an ICLR-main acceptance claim. More importantly, the method fails the internal mechanism tests even under this controlled benchmark.
 
 \section{Conclusion}
 
-Affordance debt is a useful diagnostic idea, but this implementation does not improve sequential humanoid reaching over simpler posture selectors. The honest terminal decision is \textbf{KILL/ARCHIVE}.
+Whole-body affordance debt remains a plausible idea, but this implementation does not provide submission-grade evidence. The frozen results show that \method{} improves over weak baselines but does not survive strong baselines, ablations, and paired hostile diagnostics. The terminal decision is \PaperDecision{}. The useful contribution is the falsification: it identifies why a superficially attractive mechanism should not be promoted to a main-conference claim without stronger causal separation.
+
+\clearpage
+\appendix
+
+\section{Derivation Details}
+
+\subsection{Two-Stage Objective}
+
+The ideal first-stage policy for a two-target episode is
+\begin{equation}
+  \pi^\star(\state_0,\target_1,\futureSet)
+  =\arg\min_{c_1\in\candidateSet(\target_1)}
+  \ell_{\mathrm{first}}(c_1,\target_1)
+  +\mathbb{E}_{\target_2\sim\futureSet}
+  \left[
+    \min_{c_2\in\candidateSet(\target_2)}
+    \ell_{\mathrm{second}}(F(\state_0,c_1),c_2,\target_2)
+  \right].
+\end{equation}
+This expression is expensive if the action set is rich. The benchmark uses a compact candidate library so that the idealized form is still conceptually visible. \method{} replaces the full second-stage loss with the debt proxy $R(c,y)$ and a tail-risk term.
+
+\subsection{Why Greedy Can Tie Debt}
+
+Let the candidate score be written as
+\begin{equation}
+  J_\lambda(c)=L(c)+\lambda D(c)+R(c),
+\end{equation}
+where $L$ is immediate reach cost, $D$ is future debt, and $R$ is local regularization. If $D(c)=aL(c)+bR(c)+\epsilon(c)$ with small residual $\epsilon$, then
+\begin{equation}
+  J_\lambda(c)=(1+\lambda a)L(c)+(1+\lambda b)R(c)+\lambda\epsilon(c).
+\end{equation}
+For any candidate pair whose baseline score gap is larger than the residual perturbation,
+\begin{equation}
+  |(L(c_i)+R(c_i))-(L(c_j)+R(c_j))| >
+  |\lambda(\epsilon(c_i)-\epsilon(c_j))|,
+\end{equation}
+the ordering is unchanged. This explains why first-choice differences are limited and why ablations can match the full method.
+
+\subsection{A Sufficient Condition for Improvement}
+
+Debt can help when there exists a candidate pair $a,b$ satisfying:
+\begin{align}
+  L(a) &> L(b),\\
+  \mathbb{E}_{y}[R(a,y)] &< \mathbb{E}_{y}[R(b,y)],\\
+  L(a)-L(b) &< \lambda_D(\mathbb{E}_{y}[R(b,y)]-\mathbb{E}_{y}[R(a,y)]) - (R_{\mathrm{local}}(a)-R_{\mathrm{local}}(b)).
+\end{align}
+The final inequality says the future benefit must be large enough to pay for the current inconvenience. The hostile splits were designed to create such cases, but the frozen evidence shows they are too rare or too weak for the proposed score.
+
+\section{Implementation Notes}
+
+The runner is intentionally small. Each episode samples a split, target pair, future samples, and candidate postures. Candidate first-stage outcomes are simulated once and cached. Second-stage outcomes are computed from the chosen first-stage state. The same prepared episode is shared across methods, so pairwise comparisons are meaningful. Main results and ablations are deterministic given seeds.
+
+The implementation uses MuJoCo through Python, NumPy, SciPy for paired energy tests, and Matplotlib with the non-interactive Agg backend. It writes all final artifacts under \texttt{results/}, \texttt{figures/}, \texttt{docs/}, and \texttt{paper/generated/}. The canonical PDF is copied only to \texttt{C:/Users/wangz/Downloads/65.pdf}.
+
+\section{Frozen Command}
+
+The final command is:
+\begin{verbatim}
+python src\run_experiment.py --seeds 8 --episodes 24
+  --splits nominal narrow_support high_reach lateral_reach weak_actuation
+  payload_shift combined_shift opposite_side_sequence support_reversal
+  high_lateral_payload
+  --ablation-splits combined_shift opposite_side_sequence
+  --workers 4 --chunksize 1 --results-dir results --figures-dir figures
+\end{verbatim}
+
+\section{Reproducibility Checklist}
+
+\begin{itemize}
+  \item Code compiles with \texttt{python -m py\_compile src/run\_experiment.py}.
+  \item Main raw rows: \MainRows{}.
+  \item Ablation raw rows: \AblationRows{}.
+  \item Main split-method summaries: \MetricRows{}.
+  \item Paired comparison rows: \PairwiseRows{}.
+  \item Ablation summary rows: \AblationSummaryRows{}.
+  \item Figures are regenerated from CSVs.
+  \item Tables in this paper are generated by \texttt{scripts/render\_submission\_assets.py}.
+  \item The validator checks row counts, figure existence, citation-box setup, PDF page count, and absence of a Desktop PDF.
+\end{itemize}
+
+\section{Full Split-Method Metrics}
+
+\input{generated/full_metrics_longtable.tex}
+
+\clearpage
+\section{Full Paired Comparisons}
+
+\input{generated/full_pairwise_longtable.tex}
+
+\clearpage
+\section{Seed-Level Robustness}
+
+Aggregate means can hide split-seed fragility. Table~\ref{tab:seed-metrics} therefore reports seed-level summaries for the strongest baselines, \method{}, and the oracle. This table is intentionally included in the paper rather than left only in CSV form: hostile review should be able to see whether a conclusion is carried by one lucky seed or appears across the frozen seed grid. The pattern reinforces the terminal decision. Some seeds favor \method{} on hostile splits, but the advantage does not persist strongly enough to survive comparison against robust balance, future-distribution MPC, learned linear debt, and oracle references.
+
+\input{generated/seed_metrics_selected_longtable.tex}
+
+\clearpage
+\section{Hostile Reviewer Questions}
+
+\paragraph{Does the benchmark prove affordance debt is impossible?}
+No. It proves that this implementation does not provide enough evidence. The idea may still work with richer contact modes, learned failure prediction, footstep planning, or a better option representation.
+
+\paragraph{Why not submit as a negative result?}
+A negative result can be valuable, but ICLR-main acceptance still requires a sufficiently broad and externally convincing study. This paper has a custom compact simulator and no hardware or public-suite validation. It is submission-grade as an internal archive report, not as a main-conference claim.
+
+\paragraph{Could stronger tuning make \method{} win?}
+Possibly on this benchmark, but post-freeze tuning would be scientifically weak. The purpose of the expanded protocol is to avoid optimizing for pretty results. If a new method is developed, it should receive a new pre-freeze development log and a new frozen evaluation.
+
+\paragraph{Why include the oracle?}
+The oracle is not a fair deployed baseline. It indicates how much room remains if the second-stage target is known. The oracle gap shows that the benchmark contains avoidable failures, but it does not validate \method{}.
+
+\paragraph{Why keep a 25+ page PDF for an archived paper?}
+Because the expanded standard is about evidence quality, not outcome optimism. A paper that fails should still fail with enough detail that the next attempt knows exactly what not to repeat.
+
+\section{Terminal Decision}
+
+The final decision is \PaperDecision{}. The evidence supports archiving Paper 65 under the expanded standard. The code, frozen protocol, generated tables, validation script, and final PDF remain useful for future work, but the current mechanism should not be sent to ICLR main as a positive contribution.
 
 \bibliographystyle{iclr2026_conference}
 \bibliography{references}
